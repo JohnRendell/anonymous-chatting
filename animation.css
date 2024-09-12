@@ -1,0 +1,8 @@
+@keyframes pop_up {
+    0% { top: -5rem; }
+    100% { top: 2rem; }
+}
+
+#popUpContent{
+    animation: pop_up 0.3s ease-in forwards;
+}

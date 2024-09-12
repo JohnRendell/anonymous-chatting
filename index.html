@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonymous Chatting</title>
+
+    <!--Tailwind link-->
+    <link rel="stylesheet" href="style.css">
+
+    <!--Icon library-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <!--Animation css-->
+    <link rel="stylesheet" href="animation.css">
+
+    <!--The Socket Server-->
+    <script src="/node_modules/socket.io/client-dist/socket.io.js"></script>
+    </head>
+</head>
+<body class="bg-[#F5F5F5] overflow-hidden">
+
+<!--Prompt before joining-->
+<div class="absolute w-full h-full bg-[#121212]/80 flex justify-center" id="prompt-div">
+    <div class="p-6 rounded-[2rem] flex flex-col space-y-4 mt-8 bg-white w-[20rem] h-fit md:w-fit">
+        <h1 class="text-center">Set your nickname:</h1>
+        <input type="text" minlength="1" maxlength="7" class="border-2 border-[#121212] rounded-[2rem] p-4" placeholder="Type your nickname" id="prompt-input">
+        <button class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg" onclick="submitNickname(); addToAvailableList();">Proceed</button>
+
+        <!--Small note-->
+        <p class="text-center">Note: Each tab count as another user with unique ID</p>
+        <p class="text-center text-[#F05454]" id="warningText"></p>
+    </div>
+</div>
+
+<!--For displaying finding user-->
+<div class="absolute w-full h-full bg-[#121212]/80 flex justify-center items-center" id="finding-user-div" style="display: none;">
+    <div class="p-6 rounded-[2rem] flex flex-col space-y-4 mt-8 bg-white w-[20rem] h-[20rem] justify-center items-center">
+            <p class="text-[#121212] text-center" id="find-match-p">Finding match</p>
+            <span class="loader"></span>
+                    <style>
+                        .loader {
+                            width: 48px;
+                            height: 48px;
+                            border: 5px solid #30475E;
+                            border-bottom-color: #F05454;
+                            border-radius: 50%;
+                            display: inline-block;
+                            box-sizing: border-box;
+                            animation: rotation 1s linear infinite;
+                        }
+
+                        @keyframes rotation {
+                        0% {
+                            transform: rotate(0deg);
+                        }
+                        100% {
+                            transform: rotate(360deg);
+                        }
+                    } 
+                </style>
+            <button
+                class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg"
+                onclick="cancelMatch()">Cancel</button>
+    </div>
+</div>
+
+    <!--Headers-->
+<div class="flex justify-between items-center p-2">
+    <!--Input for checking name-->
+    <input type="text" value="" id="saving-nickname" style="display: none;">
+    <input type="text" value="" id="saving-socket" style="display: none;">
+
+    <div class="flex flex-col items-center w-screen h-auto" id="header-title">
+        <h1 class="text-[#121212] text-sm md:text-lg">Welcome to Anonymous Chatting</h1>
+        <p class="text-[#121212] text-[12px] md:text-lg"><strong>Do not give your real information to chatter</strong></p>
+        <div class="flex flex-row space-x-6">
+            <p class="text-[#121212] text-[12px] md:text-lg" id="nickname">Nickname: </p>
+            <p class="text-[#121212] text-[12px] md:text-lg" id="socket">Socket ID: </p>
+        </div>
+    </div>
+
+    <div class="border-2 border-solid rounded-[2rem] p-2 border-[#121212] cursor-pointer" id="toggle-theme" onclick="changeTheme();">
+        <i class="fa fa-moon-o fa-2x"></i>
+    </div>
+</div>
+
+<!--Content Stuff-->
+<!--Create Room-->
+<div class="flex flex-col space-y-2 lg:flex-row" id="hideGroupRoom">
+    <div class="w-fit flex justify-around space-x-4 p-2 items-center">
+        <div class="w-fit h-fit">
+            <label for="createRoomInput" class="text-[#121212] text-sm md:text-lg" id="createRoomLabel">Create Room</label>
+            <input type="text" id="createRoomInput" placeholder="Room name"
+                class="rounded-[2rem] px-4 py-1 font-sans border-2 border-[#30475E] text-[12px]  md:text-lg" minlength="1"
+                maxlength="10">
+        </div>
+    
+        <div class="w-fit h-fit">
+            <label for="createRoomMaxGroup" class="text-[#121212] text-sm md:text-lg" id="limitLabel">Limit</label>
+            <input type="number" min="3" max="10" maxlength="2" id="createRoomMaxGroup"
+                class="rounded-[2rem] px-4 py-1 font-sans border-2 border-[#30475E] text-[12px]  md:text-lg" value="3"
+                placeholder="max 10">
+        </div>
+    
+        <button
+            class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg" onclick="createRoom()">Create</button>
+    </div>
+    
+    <!--Join Room-->
+    <div class="w-fit flex flex-row space-x-4 p-2 items-center">
+        <div class="w-fit h-fit flex flex-col md:items-center md:flex-row md:space-x-2">
+            <label for="roomInput" class="text-[#121212] text-sm md:text-lg" id="joinRoomLabel">Join Room</label>
+            <input type="text" id="roomInput" placeholder="Room name"
+                class="rounded-[2rem] px-4 py-1 font-sans border-2 border-[#30475E] text-[12px]  md:text-lg" minlength="1"
+                maxlength="10">
+        </div>
+    
+        <button
+            class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg" onclick="joinRoom()">Join</button>
+    </div>
+</div>
+
+<!--this is button will pop out if a user joined a room, just so they can leave when ever they want-->
+<div class="w-full h-fit flex justify-center" id="groupRoomDiv" style="display: none;">
+    <button
+        class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg"
+        onclick="leaveRoom()">Leave group</button>
+</div>
+
+<!--This button will pop up when user match to the other user-->
+<div class="w-full h-fit flex justify-center" id="chatRoomDiv" style="display: none;">
+    <button
+        class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg"
+        onclick="disconnectChat()">Disconnect to Chat</button>
+</div>
+
+<!--Messaging Stuff-->
+<div class="flex flex-col space-y-2 items-center p-4">
+    <!--Conversation will be display here-->
+    <div class="p-2 border-[#121212] rounded-[2rem] w-[80vw] h-[20rem] space-y-4 max-sm:max-[320px]:h-[12rem] max-sm:min-[375px]:h-[18rem] max-sm:min-[360px]:h-[16rem] md:w-[80vw] md:h-[30rem] lg:w-[50rem] lg:h-[18rem]" id="conversation-container">
+       <!--Message will be display here-->
+
+    <!--If user is connected, start to look for another user-->
+    <div class="w-full h-full flex flex-col justify-center space-y-2 items-center" id="find-chat-div">
+        <p class="text-[#121212] text-center" id="find-chat-p">Click to find someone to chat or join a room, or create a room</p>
+        <button
+            class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg"
+            onclick="findChat()" id="findchat-btn">Find Chat</button>
+    </div>
+    </div>
+
+    <!--Message inputs-->
+    <div class="flex flex-row space-x-2 items-center" id="message-div" style="display: none;">
+        <textarea name="" id="messageInput" class="rounded-[10px] border-2 border-[#121212] w-[13rem] h-[5rem] p-2 md:rounded-[1rem] md:w-[30rem] lg:w-[20rem]"
+            placeholder="Message Here" minlength="1" maxlength="100"></textarea>
+        
+        <button
+            class="text-[#F5F5F5] font-bold rounded-[2rem] bg-[#F05454] text-[12px] px-4 py-1 active:bg-[#30475E] md:text-lg" onclick="sendingMessage(); sendingGroupMessage()">Send</button>
+    </div>
+</div>
+
+<!--About me, credits-->
+<div class="w-full h-auto p-2 bottom-0 fixed">
+    <p class="text-[#121212] text-sm md:text-lg" id="credit">Developed by John Rendell</p>
+</div>
+</body>
+</html>
+
+<!--For backend-->
+<script src="function.js"></script>
+<script src="client.js"></script>
+<script src="socketFunction.js"></script>
